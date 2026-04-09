@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Match Details</title>
+    <meta name="description" content="Detailed cricket match page with live summary and scorecard data.">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <header class="site-header">
+        <div class="container header-inner">
+            <a href="index.html" class="brand" aria-label="Cricket Live Home">
+                <div class="brand-mark"></div>
+                <div class="brand-text">
+                    <div class="brand-title">Cricket Live</div>
+                    <div class="brand-subtitle">Real match summary and score details</div>
+                </div>
+            </a>
+
+            <nav class="nav" aria-label="Main navigation">
+                <a class="nav-link" data-nav href="index.html">Home</a>
+                <a class="nav-link" data-nav href="schedule.html">Schedule</a>
+                <a class="nav-link" data-nav href="series.html">Series</a>
+            </nav>
+        </div>
+    </header>
+
+    <main class="page">
+        <div class="container">
+            <section class="hero">
+                <div class="hero-top">
+                    <div class="hero-copy">
+                        <h1>Match details</h1>
+                        <p>
+                            This page loads a real cricket match summary from the feed,
+                            including the current status, score summary and available detailed stats.
+                        </p>
+                    </div>
+
+                    <div class="hero-meta">
+                        <div class="badge" id="matchIdBadge">Match ID: loading...</div>
+                        <a class="button secondary" href="schedule.html">Back to Schedule</a>
+                    </div>
+                </div>
+            </section>
+
+            <section class="section">
+                <div id="matchSummary">
+                    <div class="state-box">
+                        <div class="loader"></div>
+                        <div class="state-title">Loading match summary</div>
+                        <div class="state-text">Getting live cricket match details.</div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="section">
+                <div class="section-head">
+                    <div>
+                        <div class="section-title">Available stats / scorecard</div>
+                        <div class="section-subtitle">Rendered from the current summary endpoint</div>
+                    </div>
+                </div>
+
+                <div id="matchStats">
+                    <div class="state-box">
+                        <div class="loader"></div>
+                        <div class="state-title">Loading score details</div>
+                        <div class="state-text">Preparing available batting, bowling or scoring information.</div>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <footer class="site-footer">
+        <div class="container footer-inner">
+            <div>Cricket Live</div>
+            <div>Match page with real summary feed</div>
+        </div>
+    </footer>
+
+    <script src="app.js"></script>
+    <script src="match.js"></script>
+</body>
+</html>
