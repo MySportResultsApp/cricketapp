@@ -1,0 +1,211 @@
+/* ===== RESET ===== */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+    background: #0f172a;
+    color: #ffffff;
+    line-height: 1.4;
+}
+
+/* ===== CONTAINER ===== */
+.container {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 16px;
+}
+
+/* ===== NAVBAR ===== */
+.navbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 16px;
+    background: #020617;
+    border-bottom: 1px solid #1e293b;
+}
+
+.navbar h1 {
+    font-size: 18px;
+    font-weight: 600;
+}
+
+.nav-links {
+    display: flex;
+    gap: 12px;
+}
+
+.nav-links a {
+    text-decoration: none;
+    color: #94a3b8;
+    font-size: 14px;
+    transition: 0.2s;
+}
+
+.nav-links a:hover {
+    color: #ffffff;
+}
+
+/* ===== SECTION TITLE ===== */
+.section-title {
+    font-size: 18px;
+    margin: 16px 0;
+    font-weight: 600;
+}
+
+/* ===== GAME CARD ===== */
+.game-card {
+    background: #020617;
+    border: 1px solid #1e293b;
+    border-radius: 12px;
+    padding: 14px;
+    margin-bottom: 12px;
+    transition: 0.2s;
+}
+
+.game-card:hover {
+    border-color: #334155;
+}
+
+/* ===== GAME HEADER ===== */
+.game-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.game-status {
+    font-size: 12px;
+    color: #38bdf8;
+}
+
+/* ===== TEAMS ===== */
+.teams {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.team {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.team-name {
+    font-size: 14px;
+    color: #e2e8f0;
+}
+
+.team-score {
+    font-size: 20px;
+    font-weight: 600;
+}
+
+/* ===== VS TEXT ===== */
+.vs {
+    font-size: 12px;
+    color: #64748b;
+}
+
+/* ===== BUTTON ===== */
+.button {
+    display: inline-block;
+    margin-top: 10px;
+    padding: 6px 10px;
+    background: #1d4ed8;
+    border-radius: 6px;
+    font-size: 12px;
+    text-decoration: none;
+    color: white;
+    transition: 0.2s;
+}
+
+.button:hover {
+    background: #2563eb;
+}
+
+/* ===== DATE PICKER ===== */
+.date-picker {
+    margin-bottom: 16px;
+}
+
+.date-picker input {
+    width: 100%;
+    padding: 8px;
+    background: #020617;
+    border: 1px solid #1e293b;
+    border-radius: 6px;
+    color: white;
+}
+
+/* ===== GAME DETAILS ===== */
+.game-details {
+    background: #020617;
+    border: 1px solid #1e293b;
+    border-radius: 12px;
+    padding: 16px;
+}
+
+.innings {
+    margin-top: 12px;
+}
+
+.inning-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    padding: 4px 0;
+    border-bottom: 1px solid #1e293b;
+}
+
+/* ===== TEAMS LIST ===== */
+.team-list {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+}
+
+.team-card {
+    background: #020617;
+    border: 1px solid #1e293b;
+    border-radius: 10px;
+    padding: 10px;
+    text-align: center;
+    font-size: 14px;
+}
+
+/* ===== LOADER ===== */
+.loader {
+    text-align: center;
+    padding: 20px;
+    color: #64748b;
+}
+
+/* ===== EMPTY STATE ===== */
+.empty {
+    text-align: center;
+    padding: 20px;
+    color: #64748b;
+}
+
+/* ===== MOBILE ===== */
+@media (max-width: 600px) {
+    .teams {
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .vs {
+        display: none;
+    }
+
+    .team-list {
+        grid-template-columns: 1fr;
+    }
+}
