@@ -3,25 +3,23 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cricket Live</title>
-    <meta name="description" content="Simple cricket site with live matches, scores, series and match details.">
+    <title>Cricket News</title>
+    <meta name="description" content="Simple cricket news page with real articles and images.">
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
     <header class="site-header">
         <div class="container header-inner">
-            <a href="index.html" class="brand" aria-label="Cricket Live Home">
+            <a href="index.html" class="brand" aria-label="Cricket News Home">
                 <div class="brand-mark"></div>
                 <div class="brand-text">
-                    <div class="brand-title">Cricket Live</div>
-                    <div class="brand-subtitle">Live scores, recent matches and cricket news</div>
+                    <div class="brand-title">Cricket News</div>
+                    <div class="brand-subtitle">Real cricket articles with images</div>
                 </div>
             </a>
 
             <nav class="nav" aria-label="Main navigation">
-                <a class="nav-link" data-nav href="index.html">Home</a>
-                <a class="nav-link" data-nav href="schedule.html">Schedule</a>
-                <a class="nav-link" data-nav href="series.html">Series</a>
+                <a class="nav-link" data-nav href="index.html">News</a>
             </nav>
         </div>
     </header>
@@ -31,21 +29,16 @@
             <section class="hero">
                 <div class="hero-top">
                     <div class="hero-copy">
-                        <h1>Live cricket in a simple interface</h1>
+                        <h1>Latest cricket news</h1>
                         <p>
-                            This page shows real current cricket matches, recently finished games,
-                            upcoming fixtures and fresh cricket articles in a clean layout.
+                            A simple static page that loads real cricket articles from public feeds,
+                            shows images when available, and links directly to the original articles.
                         </p>
                     </div>
 
                     <div class="hero-meta">
-                        <div class="badge live">
-                            <span class="dot-live"></span>
-                            <span id="liveCountBadge">Checking live matches...</span>
-                        </div>
-                        <div class="badge">
-                            <span id="todayDateBadge">Loading date...</span>
-                        </div>
+                        <div class="badge" id="articlesCountBadge">Checking articles...</div>
+                        <div class="badge ok" id="sourcesBadge">Loading sources...</div>
                     </div>
                 </div>
             </section>
@@ -53,60 +46,28 @@
             <section class="section">
                 <div class="section-head">
                     <div>
-                        <div class="section-title">Live now</div>
-                        <div class="section-subtitle">Matches currently in progress</div>
+                        <div class="section-title">Search</div>
+                        <div class="section-subtitle">Filter loaded cricket articles by keyword</div>
                     </div>
                 </div>
 
-                <div id="liveMatches" class="grid matches">
-                    <div class="state-box">
-                        <div class="loader"></div>
-                        <div class="state-title">Loading live matches</div>
-                        <div class="state-text">Getting the latest cricket scoreboard.</div>
-                    </div>
-                </div>
-            </section>
-
-            <section class="section">
-                <div class="section-head">
-                    <div>
-                        <div class="section-title">Upcoming matches</div>
-                        <div class="section-subtitle">Next scheduled games from the feed</div>
-                    </div>
-                    <a class="button secondary" href="schedule.html">Open full schedule</a>
-                </div>
-
-                <div id="upcomingMatches" class="grid matches">
-                    <div class="state-box">
-                        <div class="loader"></div>
-                        <div class="state-title">Loading upcoming matches</div>
-                        <div class="state-text">Checking the current schedule.</div>
-                    </div>
+                <div class="toolbar">
+                    <input
+                        class="input"
+                        type="text"
+                        id="searchInput"
+                        placeholder="Search news..."
+                        aria-label="Search cricket news"
+                    >
+                    <button class="button secondary" id="clearSearchButton" type="button">Clear</button>
                 </div>
             </section>
 
             <section class="section">
                 <div class="section-head">
                     <div>
-                        <div class="section-title">Recent results</div>
-                        <div class="section-subtitle">Recently finished cricket matches</div>
-                    </div>
-                </div>
-
-                <div id="finishedMatches" class="grid matches">
-                    <div class="state-box">
-                        <div class="loader"></div>
-                        <div class="state-title">Loading results</div>
-                        <div class="state-text">Collecting completed match results.</div>
-                    </div>
-                </div>
-            </section>
-
-            <section class="section">
-                <div class="section-head">
-                    <div>
-                        <div class="section-title">Latest cricket articles</div>
-                        <div class="section-subtitle">Real articles from the news feed</div>
+                        <div class="section-title">Articles</div>
+                        <div class="section-subtitle">Live loaded from RSS feeds</div>
                     </div>
                 </div>
 
@@ -114,7 +75,7 @@
                     <div class="state-box">
                         <div class="loader"></div>
                         <div class="state-title">Loading news</div>
-                        <div class="state-text">Getting current cricket articles.</div>
+                        <div class="state-text">Getting cricket articles and images from public feeds.</div>
                     </div>
                 </div>
             </section>
@@ -123,8 +84,8 @@
 
     <footer class="site-footer">
         <div class="container footer-inner">
-            <div>Cricket Live</div>
-            <div>Simple static site for friends</div>
+            <div>Cricket News</div>
+            <div>Simple static feed reader</div>
         </div>
     </footer>
 
