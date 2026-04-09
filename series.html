@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cricket Series</title>
+    <meta name="description" content="Cricket series and tournaments from the current live feed.">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <header class="site-header">
+        <div class="container header-inner">
+            <a href="index.html" class="brand" aria-label="Cricket Live Home">
+                <div class="brand-mark"></div>
+                <div class="brand-text">
+                    <div class="brand-title">Cricket Live</div>
+                    <div class="brand-subtitle">Current series and tournaments from the feed</div>
+                </div>
+            </a>
+
+            <nav class="nav" aria-label="Main navigation">
+                <a class="nav-link" data-nav href="index.html">Home</a>
+                <a class="nav-link" data-nav href="schedule.html">Schedule</a>
+                <a class="nav-link" data-nav href="series.html">Series</a>
+            </nav>
+        </div>
+    </header>
+
+    <main class="page">
+        <div class="container">
+            <section class="hero">
+                <div class="hero-top">
+                    <div class="hero-copy">
+                        <h1>Cricket series</h1>
+                        <p>
+                            This page shows real current series and tournaments from the cricket feed.
+                            You can also open a selected series and see related matches available in the same feed.
+                        </p>
+                    </div>
+
+                    <div class="hero-meta">
+                        <div class="badge" id="seriesModeBadge">Loading series...</div>
+                        <a class="button secondary" href="index.html">Back to Home</a>
+                    </div>
+                </div>
+            </section>
+
+            <section class="section" id="seriesListSection">
+                <div class="section-head">
+                    <div>
+                        <div class="section-title">Available series</div>
+                        <div class="section-subtitle">Grouped from the current scoreboard feed</div>
+                    </div>
+                </div>
+
+                <div id="seriesGrid" class="grid series">
+                    <div class="state-box">
+                        <div class="loader"></div>
+                        <div class="state-title">Loading series</div>
+                        <div class="state-text">Getting current cricket series and tournaments.</div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="section" id="seriesMatchesSection">
+                <div class="section-head">
+                    <div>
+                        <div class="section-title" id="seriesMatchesTitle">Series matches</div>
+                        <div class="section-subtitle" id="seriesMatchesSubtitle">Matches found for the selected series</div>
+                    </div>
+                </div>
+
+                <div id="seriesMatches" class="grid matches">
+                    <div class="state-box">
+                        <div class="state-title">Choose a series</div>
+                        <div class="state-text">Open this page from a series card or click a series below.</div>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <footer class="site-footer">
+        <div class="container footer-inner">
+            <div>Cricket Live</div>
+            <div>Series page with real feed grouping</div>
+        </div>
+    </footer>
+
+    <script src="app.js"></script>
+    <script src="series.js"></script>
+</body>
+</html>
