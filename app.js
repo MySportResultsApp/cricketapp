@@ -1,76 +1,22 @@
-const CRICKET_API = {
-    scoreboard: [
-        'https://site.api.espn.com/apis/site/v2/sports/cricket/scoreboard',
-        'https://site.api.espn.com/apis/site/v2/sports/cricket/scoreboard?limit=100'
-    ],
-    summary: [
-        'https://site.api.espn.com/apis/site/v2/sports/cricket/summary?event={EVENT_ID}'
-    ],
-    news: [
-        'https://site.api.espn.com/apis/site/v2/sports/cricket/news'
-    ]
+const NEWS_SOURCES = [
+    {
+        key: 'espncricinfo',
+        title: 'ESPNcricinfo',
+        url: 'https://www.espncricinfo.com/rss/content/story/feeds/0.xml'
+    },
+    {
+        key: 'bbc-cricket',
+        title: 'BBC Sport Cricket',
+        url: 'https://feeds.bbci.co.uk/sport/cricket/rss.xml'
+    }
+];
+
+const REQUEST_CONFIG = {
+    timeoutMs: 18000,
+    imageEnrichLimit: 8,
+    localCacheKey: 'cricket_news_cache_v1',
+    localCacheTtlMs: 10 * 60 * 1000
 };
-
-const APP_CONFIG = {
-    requestTimeoutMs: 16000,
-    recentDaysBack: 3,
-    upcomingDaysForward: 5
-};
-
-function buildUrl(base, params) {
-    const url = new URL(base);
-
-    if (params && typeof params === 'object') {
-        Object.keys(params).forEach(function (key) {
-            const value = params[key];
-
-            if (value !== undefined && value !== null && value !== '') {
-                url.searchParams.set(key, value);
-            }
-        });
-    }
-
-    return url.toString();
-}
-
-async function fetchJsonWithTimeout(url, timeoutMs) {
-    const controller = new AbortController();
-    const timer = setTimeout(function () {
-        controller.abort();
-    }, timeoutMs || APP_CONFIG.requestTimeoutMs);
-
-    try {
-        const response = await fetch(url, {
-            method: 'GET',
-            headers: {
-                'Accept': 'application/json'
-            },
-            signal: controller.signal
-        });
-
-        if (!response.ok) {
-            throw new Error('Request failed with status ' + response.status);
-        }
-
-        return await response.json();
-    } finally {
-        clearTimeout(timer);
-    }
-}
-
-async function fetchFirstWorkingJson(urls) {
-    let lastError = null;
-
-    for (let i = 0; i < urls.length; i += 1) {
-        try {
-            return await fetchJsonWithTimeout(urls[i], APP_CONFIG.requestTimeoutMs);
-        } catch (error) {
-            lastError = error;
-        }
-    }
-
-    throw lastError || new Error('All endpoints failed');
-}
 
 function escapeHtml(value) {
     if (value === null || value === undefined) {
@@ -83,49 +29,6 @@ function escapeHtml(value) {
         .replaceAll('>', '&gt;')
         .replaceAll('"', '&quot;')
         .replaceAll("'", '&#039;');
-}
-
-function formatDateInputValue(date) {
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    return year + '-' + month + '-' + day;
-}
-
-function formatDisplayDate(dateString) {
-    if (!dateString) {
-        return 'Unknown date';
-    }
-
-    const date = new Date(dateString);
-
-    if (Number.isNaN(date.getTime())) {
-        return dateString;
-    }
-
-    return date.toLocaleDateString(undefined, {
-        weekday: 'short',
-        month: 'short',
-        day: 'numeric',
-        year: 'numeric'
-    });
-}
-
-function formatDisplayTime(dateString) {
-    if (!dateString) {
-        return '';
-    }
-
-    const date = new Date(dateString);
-
-    if (Number.isNaN(date.getTime())) {
-        return '';
-    }
-
-    return date.toLocaleTimeString(undefined, {
-        hour: '2-digit',
-        minute: '2-digit'
-    });
 }
 
 function formatDisplayDateTime(dateString) {
@@ -149,27 +52,12 @@ function formatDisplayDateTime(dateString) {
     });
 }
 
-function getQueryParam(name) {
-    const params = new URLSearchParams(window.location.search);
-    return params.get(name);
-}
-
-function setActiveNav() {
-    const page = window.location.pathname.split('/').pop() || 'index.html';
-    const links = document.querySelectorAll('[data-nav]');
-
-    links.forEach(function (link) {
-        const target = link.getAttribute('href') || '';
-        link.classList.toggle('active', target === page);
-    });
-}
-
 function createLoaderState(title, text) {
     return `
         <div class="state-box">
             <div class="loader"></div>
             <div class="state-title">${escapeHtml(title || 'Loading')}</div>
-            <div class="state-text">${escapeHtml(text || 'Please wait while live cricket data is loading.')}</div>
+            <div class="state-text">${escapeHtml(text || 'Please wait while news is loading.')}</div>
         </div>
     `;
 }
@@ -177,8 +65,8 @@ function createLoaderState(title, text) {
 function createEmptyState(title, text) {
     return `
         <div class="state-box">
-            <div class="state-title">${escapeHtml(title || 'Nothing here')}</div>
-            <div class="state-text">${escapeHtml(text || 'No items were found for this section.')}</div>
+            <div class="state-title">${escapeHtml(title || 'Nothing found')}</div>
+            <div class="state-text">${escapeHtml(text || 'No articles were found.')}</div>
         </div>
     `;
 }
@@ -187,7 +75,7 @@ function createErrorState(title, text) {
     return `
         <div class="state-box">
             <div class="state-title">${escapeHtml(title || 'Failed to load')}</div>
-            <div class="state-text">${escapeHtml(text || 'The data source did not respond in time or returned an unexpected result.')}</div>
+            <div class="state-text">${escapeHtml(text || 'Could not load the source feed.')}</div>
         </div>
     `;
 }
@@ -200,720 +88,475 @@ function renderState(container, html) {
     container.innerHTML = html;
 }
 
-function normalizeArray(value) {
-    if (Array.isArray(value)) {
-        return value;
+function getQueryParam(name) {
+    const params = new URLSearchParams(window.location.search);
+    return params.get(name);
+}
+
+function setActiveNav() {
+    const page = window.location.pathname.split('/').pop() || 'index.html';
+    const links = document.querySelectorAll('[data-nav]');
+
+    links.forEach(function (link) {
+        const href = link.getAttribute('href') || '';
+        link.classList.toggle('active', href === page);
+    });
+}
+
+function normalizeText(value) {
+    if (!value) {
+        return '';
     }
 
-    return [];
+    return String(value).replace(/\s+/g, ' ').trim();
 }
 
-function getObject(value) {
-    if (value && typeof value === 'object') {
-        return value;
+function stripHtml(html) {
+    if (!html) {
+        return '';
     }
 
-    return {};
+    const parser = new DOMParser();
+    const doc = parser.parseFromString('<div>' + html + '</div>', 'text/html');
+    return normalizeText(doc.body.textContent || '');
 }
 
-function getCompetitorsFromEvent(event) {
-    const competition = getPrimaryCompetition(event);
-    return normalizeArray(competition.competitors);
+function decodeHtmlEntities(value) {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(value || '', 'text/html');
+    return doc.documentElement.textContent || '';
 }
 
-function getPrimaryCompetition(event) {
-    const competitions = normalizeArray(getObject(event).competitions);
-    return competitions[0] || {};
+function safeArrayFromNodeList(nodeList) {
+    return Array.prototype.slice.call(nodeList || []);
 }
 
-function getCompetitorTeamName(competitor) {
-    const item = getObject(competitor);
-    const team = getObject(item.team);
+function getStorageCache() {
+    try {
+        const raw = localStorage.getItem(REQUEST_CONFIG.localCacheKey);
 
-    return (
-        team.displayName ||
-        team.shortDisplayName ||
-        item.displayName ||
-        item.shortDisplayName ||
-        team.name ||
-        'Unknown Team'
-    );
+        if (!raw) {
+            return {};
+        }
+
+        return JSON.parse(raw);
+    } catch (error) {
+        return {};
+    }
 }
 
-function getCompetitorShortName(competitor) {
-    const item = getObject(competitor);
-    const team = getObject(item.team);
-
-    return (
-        team.shortDisplayName ||
-        item.shortDisplayName ||
-        team.abbreviation ||
-        team.displayName ||
-        item.displayName ||
-        'Team'
-    );
+function setStorageCache(data) {
+    try {
+        localStorage.setItem(REQUEST_CONFIG.localCacheKey, JSON.stringify(data));
+    } catch (error) {
+    }
 }
 
-function getCompetitorId(competitor) {
-    const item = getObject(competitor);
-    const team = getObject(item.team);
+function getCachedFeed(sourceKey) {
+    const cache = getStorageCache();
+    const entry = cache[sourceKey];
 
-    return String(team.id || item.id || '');
-}
-
-function getCompetitorScore(competitor) {
-    const item = getObject(competitor);
-    const score = item.score;
-
-    if (score === null || score === undefined || score === '') {
-        return '-';
+    if (!entry || !entry.savedAt || !entry.articles) {
+        return null;
     }
 
-    return String(score);
+    if (Date.now() - entry.savedAt > REQUEST_CONFIG.localCacheTtlMs) {
+        return null;
+    }
+
+    return entry.articles;
 }
 
-function getCompetitorRecordText(competitor) {
-    const item = getObject(competitor);
-    const records = normalizeArray(item.records);
+function setCachedFeed(sourceKey, articles) {
+    const cache = getStorageCache();
 
-    if (records.length > 0) {
-        const first = getObject(records[0]);
-        return first.summary || first.displayValue || '';
+    cache[sourceKey] = {
+        savedAt: Date.now(),
+        articles: articles
+    };
+
+    setStorageCache(cache);
+}
+
+function timeoutPromise(ms) {
+    return new Promise(function (_, reject) {
+        setTimeout(function () {
+            reject(new Error('Request timeout'));
+        }, ms);
+    });
+}
+
+async function fetchTextWithTimeout(url) {
+    const request = fetch(url, {
+        method: 'GET',
+        headers: {
+            'Accept': 'text/plain, application/xml, text/xml, text/html, */*'
+        }
+    }).then(function (response) {
+        if (!response.ok) {
+            throw new Error('Request failed with status ' + response.status);
+        }
+
+        return response.text();
+    });
+
+    return await Promise.race([
+        request,
+        timeoutPromise(REQUEST_CONFIG.timeoutMs)
+    ]);
+}
+
+function buildProxyUrls(targetUrl) {
+    return [
+        targetUrl,
+        'https://api.allorigins.win/raw?url=' + encodeURIComponent(targetUrl),
+        'https://api.allorigins.win/get?url=' + encodeURIComponent(targetUrl)
+    ];
+}
+
+async function fetchFirstWorkingText(urls) {
+    let lastError = null;
+
+    for (let i = 0; i < urls.length; i += 1) {
+        try {
+            const raw = await fetchTextWithTimeout(urls[i]);
+
+            if (urls[i].includes('/get?url=')) {
+                const parsed = JSON.parse(raw);
+
+                if (parsed && parsed.contents) {
+                    return parsed.contents;
+                }
+            } else {
+                return raw;
+            }
+        } catch (error) {
+            lastError = error;
+        }
+    }
+
+    throw lastError || new Error('All feed requests failed');
+}
+
+async function fetchXmlDocument(url) {
+    const text = await fetchFirstWorkingText(buildProxyUrls(url));
+    const parser = new DOMParser();
+    const xml = parser.parseFromString(text, 'application/xml');
+
+    if (xml.querySelector('parsererror')) {
+        throw new Error('Failed to parse XML');
+    }
+
+    return xml;
+}
+
+function getTagText(parent, selectors) {
+    if (!parent) {
+        return '';
+    }
+
+    for (let i = 0; i < selectors.length; i += 1) {
+        const node = parent.querySelector(selectors[i]);
+
+        if (node && node.textContent) {
+            return normalizeText(node.textContent);
+        }
     }
 
     return '';
 }
 
-function getCompetitorLinescoreText(competitor) {
-    const item = getObject(competitor);
-    const linescores = normalizeArray(item.linescores);
-
-    if (linescores.length === 0) {
+function getAttrValue(parent, selectors, attrName) {
+    if (!parent) {
         return '';
     }
 
-    return linescores
-        .map(function (part) {
-            const current = getObject(part);
-            return current.displayValue || current.value || current.shortDisplayValue || '';
-        })
-        .filter(Boolean)
-        .join(' • ');
-}
+    for (let i = 0; i < selectors.length; i += 1) {
+        const node = parent.querySelector(selectors[i]);
 
-function getStatusDetail(event) {
-    const status = getObject(getObject(event).status);
-    const type = getObject(status.type);
+        if (node) {
+            const value = node.getAttribute(attrName);
 
-    return (
-        type.detail ||
-        status.displayClock ||
-        type.shortDetail ||
-        type.description ||
-        status.type?.name ||
-        'Status unavailable'
-    );
-}
-
-function getStatusState(event) {
-    const status = getObject(getObject(event).status);
-    const type = getObject(status.type);
-
-    return (
-        type.state ||
-        type.name ||
-        type.description ||
-        ''
-    ).toLowerCase();
-}
-
-function getStatusCategory(event) {
-    const state = getStatusState(event);
-    const detail = getStatusDetail(event).toLowerCase();
-
-    if (state.includes('in') || state.includes('live') || detail.includes('live') || detail.includes('stumps') || detail.includes('innings break')) {
-        return 'live';
-    }
-
-    if (state.includes('post') || state.includes('final') || detail.includes('result') || detail.includes('won by') || detail.includes('match drawn') || detail.includes('tied')) {
-        return 'finished';
-    }
-
-    return 'upcoming';
-}
-
-function getEventId(event) {
-    return String(getObject(event).id || '');
-}
-
-function getEventName(event) {
-    const item = getObject(event);
-
-    return (
-        item.name ||
-        item.shortName ||
-        'Cricket Match'
-    );
-}
-
-function getEventShortName(event) {
-    const item = getObject(event);
-
-    return (
-        item.shortName ||
-        item.name ||
-        'Match'
-    );
-}
-
-function getEventDate(event) {
-    return getObject(event).date || '';
-}
-
-function getEventLeagueName(event) {
-    const competition = getPrimaryCompetition(event);
-    const series = getObject(competition.series);
-    const league = getObject(getObject(event).league);
-
-    return (
-        series.fullName ||
-        series.shortName ||
-        league.displayName ||
-        league.shortName ||
-        ''
-    );
-}
-
-function getEventVenue(event) {
-    const competition = getPrimaryCompetition(event);
-    const venue = getObject(competition.venue);
-    const address = getObject(venue.address);
-    const pieces = [];
-
-    if (venue.fullName) {
-        pieces.push(venue.fullName);
-    }
-
-    if (address.city) {
-        pieces.push(address.city);
-    }
-
-    if (address.country) {
-        pieces.push(address.country);
-    }
-
-    return pieces.filter(Boolean).join(', ');
-}
-
-function getEventLink(event) {
-    const links = normalizeArray(getObject(event).links);
-    const first = getObject(links[0]);
-
-    return first.href || '';
-}
-
-function getTossText(summaryData) {
-    const header = getObject(summaryData.header);
-    const competitions = normalizeArray(header.competitions);
-    const competition = getObject(competitions[0]);
-    const note = normalizeArray(competition.notes)[0] || {};
-
-    return note.headline || note.shortText || '';
-}
-
-function getSeriesFromScoreboard(scoreboardData) {
-    const events = normalizeArray(getObject(scoreboardData).events);
-    const map = new Map();
-
-    events.forEach(function (event) {
-        const competition = getPrimaryCompetition(event);
-        const series = getObject(competition.series);
-
-        const id = String(series.id || competition.id || getEventId(event) || '');
-        const title = series.fullName || series.shortName || getEventLeagueName(event) || 'Cricket Series';
-
-        if (!id || !title) {
-            return;
+            if (value) {
+                return value.trim();
+            }
         }
+    }
 
-        if (!map.has(id)) {
-            map.set(id, {
-                id: id,
-                title: title,
-                shortTitle: series.shortName || title,
-                description: getEventVenue(event),
-                matchName: getEventShortName(event),
-                eventId: getEventId(event),
-                date: getEventDate(event)
-            });
-        }
-    });
-
-    return Array.from(map.values())
-        .sort(function (a, b) {
-            return new Date(a.date).getTime() - new Date(b.date).getTime();
-        });
+    return '';
 }
 
-function getNewsArticles(newsData) {
-    const articles = normalizeArray(getObject(newsData).articles);
+function parseImageFromHtmlSnippet(snippet) {
+    if (!snippet) {
+        return '';
+    }
 
-    return articles.map(function (article) {
-        const item = getObject(article);
-        const images = normalizeArray(item.images);
-        const links = normalizeArray(item.links);
-        const firstLink = getObject(links[0]);
+    const parser = new DOMParser();
+    const doc = parser.parseFromString('<div>' + snippet + '</div>', 'text/html');
+
+    const img = doc.querySelector('img');
+
+    if (img) {
+        const src = img.getAttribute('src') || img.getAttribute('data-src');
+
+        if (src) {
+            return src.trim();
+        }
+    }
+
+    return '';
+}
+
+function buildArticleId(sourceKey, link, title) {
+    return sourceKey + '|' + (link || title || Math.random());
+}
+
+function parseRssItems(xml, source) {
+    const items = safeArrayFromNodeList(xml.querySelectorAll('item'));
+
+    return items.map(function (item) {
+        const title = decodeHtmlEntities(getTagText(item, ['title']));
+        const link = getTagText(item, ['link']);
+        const published = getTagText(item, ['pubDate', 'published', 'updated']);
+        const rawDescription = getTagText(item, ['description', 'content\\:encoded', 'encoded']);
+        const sourceName = source.title;
+
+        const image =
+            getAttrValue(item, ['media\\:content', 'content'], 'url') ||
+            getAttrValue(item, ['media\\:thumbnail', 'thumbnail'], 'url') ||
+            getAttrValue(item, ['enclosure'], 'url') ||
+            parseImageFromHtmlSnippet(rawDescription);
+
+        const textDescription = stripHtml(rawDescription);
 
         return {
-            id: String(item.id || item.guid || item.headline || Math.random()),
-            title: item.headline || item.title || 'Untitled article',
-            description: item.description || item.story || '',
-            published: item.published || item.lastModified || '',
-            byline: item.byline || '',
-            link: firstLink.web || item.link || '',
-            image: getObject(images[0]).url || ''
+            id: buildArticleId(source.key, link, title),
+            sourceKey: source.key,
+            sourceName: sourceName,
+            title: title || 'Untitled article',
+            link: link || '',
+            published: published || '',
+            description: textDescription || '',
+            image: image || '',
+            rawDescription: rawDescription || ''
         };
+    }).filter(function (article) {
+        return article.title && article.link;
     });
 }
 
-function normalizeMatchEvent(event) {
-    const competitors = getCompetitorsFromEvent(event);
-    const first = competitors[0] || {};
-    const second = competitors[1] || {};
+function sortArticlesByDate(items) {
+    return items.slice().sort(function (a, b) {
+        const first = new Date(a.published).getTime();
+        const second = new Date(b.published).getTime();
 
-    return {
-        id: getEventId(event),
-        name: getEventName(event),
-        shortName: getEventShortName(event),
-        date: getEventDate(event),
-        leagueName: getEventLeagueName(event),
-        venue: getEventVenue(event),
-        statusText: getStatusDetail(event),
-        statusCategory: getStatusCategory(event),
-        link: getEventLink(event),
-        teamA: {
-            id: getCompetitorId(first),
-            name: getCompetitorTeamName(first),
-            shortName: getCompetitorShortName(first),
-            score: getCompetitorScore(first),
-            record: getCompetitorRecordText(first),
-            linescore: getCompetitorLinescoreText(first)
-        },
-        teamB: {
-            id: getCompetitorId(second),
-            name: getCompetitorTeamName(second),
-            shortName: getCompetitorShortName(second),
-            score: getCompetitorScore(second),
-            record: getCompetitorRecordText(second),
-            linescore: getCompetitorLinescoreText(second)
+        if (Number.isNaN(first) && Number.isNaN(second)) {
+            return 0;
         }
-    };
-}
 
-function getMatchNote(match) {
-    const notes = [];
+        if (Number.isNaN(first)) {
+            return 1;
+        }
 
-    if (match.leagueName) {
-        notes.push(match.leagueName);
-    }
+        if (Number.isNaN(second)) {
+            return -1;
+        }
 
-    if (match.venue) {
-        notes.push(match.venue);
-    }
-
-    return notes.join(' • ');
-}
-
-function renderMatchCard(match) {
-    const statusClass = match.statusCategory || 'upcoming';
-    const note = getMatchNote(match);
-    const matchTime = formatDisplayDateTime(match.date);
-
-    return `
-        <article class="card match-card">
-            <div class="card-body">
-                <div class="match-top">
-                    <div class="match-status ${escapeHtml(statusClass)}">
-                        ${statusClass === 'live' ? '<span class="dot-live"></span>' : ''}
-                        <span>${escapeHtml(match.statusText)}</span>
-                    </div>
-                    <div class="match-meta">${escapeHtml(matchTime)}</div>
-                </div>
-
-                <div class="teams">
-                    <div class="team-row">
-                        <div class="team-main">
-                            <div class="team-name">${escapeHtml(match.teamA.name)}</div>
-                            <div class="team-extra">${escapeHtml(match.teamA.linescore || match.teamA.record || '')}</div>
-                        </div>
-                        <div class="team-score">${escapeHtml(match.teamA.score)}</div>
-                    </div>
-
-                    <div class="team-row">
-                        <div class="team-main">
-                            <div class="team-name">${escapeHtml(match.teamB.name)}</div>
-                            <div class="team-extra">${escapeHtml(match.teamB.linescore || match.teamB.record || '')}</div>
-                        </div>
-                        <div class="team-score">${escapeHtml(match.teamB.score)}</div>
-                    </div>
-                </div>
-
-                <div class="match-footer">
-                    <div class="match-note">${escapeHtml(note)}</div>
-                    <a class="match-link" href="match.html?id=${encodeURIComponent(match.id)}">Match Details</a>
-                </div>
-            </div>
-        </article>
-    `;
-}
-
-function renderSeriesCard(series) {
-    return `
-        <article class="card series-card">
-            <div class="card-body">
-                <div class="series-title">${escapeHtml(series.title)}</div>
-                <div class="series-meta">${escapeHtml(formatDisplayDateTime(series.date))}</div>
-                <div class="series-desc">${escapeHtml(series.description || series.matchName || 'Current cricket series and event grouping.')}</div>
-                <a class="series-link" href="series.html?id=${encodeURIComponent(series.id)}">Open Series</a>
-            </div>
-        </article>
-    `;
-}
-
-function renderArticleCard(article) {
-    return `
-        <article class="card article-card">
-            <div class="card-body">
-                <div class="article-title">${escapeHtml(article.title)}</div>
-                <div class="article-meta">${escapeHtml(formatDisplayDateTime(article.published))}${article.byline ? ' • ' + escapeHtml(article.byline) : ''}</div>
-                <div class="article-desc">${escapeHtml(article.description || 'Open the article to read more.')}</div>
-                ${article.link ? `<a class="article-link" href="${escapeHtml(article.link)}" target="_blank" rel="noopener noreferrer">Open Article</a>` : ''}
-            </div>
-        </article>
-    `;
-}
-
-function renderMatchCards(container, matches, emptyTitle, emptyText) {
-    if (!container) {
-        return;
-    }
-
-    if (!matches || matches.length === 0) {
-        renderState(container, createEmptyState(emptyTitle, emptyText));
-        return;
-    }
-
-    container.innerHTML = matches.map(renderMatchCard).join('');
-}
-
-function renderSeriesCards(container, items, emptyTitle, emptyText) {
-    if (!container) {
-        return;
-    }
-
-    if (!items || items.length === 0) {
-        renderState(container, createEmptyState(emptyTitle, emptyText));
-        return;
-    }
-
-    container.innerHTML = items.map(renderSeriesCard).join('');
-}
-
-function renderArticleCards(container, items, emptyTitle, emptyText) {
-    if (!container) {
-        return;
-    }
-
-    if (!items || items.length === 0) {
-        renderState(container, createEmptyState(emptyTitle, emptyText));
-        return;
-    }
-
-    container.innerHTML = items.map(renderArticleCard).join('');
-}
-
-function sortMatchesByDate(events) {
-    return events.slice().sort(function (a, b) {
-        return new Date(a.date).getTime() - new Date(b.date).getTime();
+        return second - first;
     });
 }
 
-function splitMatchesByStatus(matches) {
-    const result = {
-        live: [],
-        upcoming: [],
-        finished: []
-    };
+function uniqueArticles(items) {
+    const used = new Set();
+    const result = [];
 
-    matches.forEach(function (match) {
-        const category = match.statusCategory || 'upcoming';
+    items.forEach(function (item) {
+        const key = (item.link || '') + '|' + (item.title || '');
 
-        if (!result[category]) {
-            result.upcoming.push(match);
+        if (used.has(key)) {
             return;
         }
 
-        result[category].push(match);
+        used.add(key);
+        result.push(item);
     });
 
     return result;
 }
 
-async function fetchScoreboard(params) {
-    const urls = CRICKET_API.scoreboard.map(function (baseUrl) {
-        return buildUrl(baseUrl, params || {});
-    });
+async function fetchArticlesFromSource(source) {
+    const cached = getCachedFeed(source.key);
 
-    return await fetchFirstWorkingJson(urls);
-}
-
-async function fetchCurrentMatches() {
-    const data = await fetchScoreboard({ limit: 100 });
-    const events = normalizeArray(getObject(data).events).map(normalizeMatchEvent);
-    return sortMatchesByDate(events);
-}
-
-async function fetchMatchesByDate(dateString) {
-    const data = await fetchScoreboard({
-        dates: dateString.replaceAll('-', ''),
-        limit: 100
-    });
-
-    const events = normalizeArray(getObject(data).events).map(normalizeMatchEvent);
-    return sortMatchesByDate(events);
-}
-
-async function fetchMatchSummary(eventId) {
-    const urls = CRICKET_API.summary.map(function (url) {
-        return url.replace('{EVENT_ID}', encodeURIComponent(eventId));
-    });
-
-    return await fetchFirstWorkingJson(urls);
-}
-
-async function fetchCricketNews() {
-    const data = await fetchFirstWorkingJson(CRICKET_API.news);
-    return getNewsArticles(data);
-}
-
-async function fetchCricketSeries() {
-    const data = await fetchScoreboard({ limit: 100 });
-    return getSeriesFromScoreboard(data);
-}
-
-function getSummaryHeader(summaryData) {
-    const header = getObject(summaryData.header);
-    const competitions = normalizeArray(header.competitions);
-    return getObject(competitions[0]);
-}
-
-function getSummaryCompetitors(summaryData) {
-    const headerCompetition = getSummaryHeader(summaryData);
-    return normalizeArray(headerCompetition.competitors);
-}
-
-function normalizeSummaryTeam(competitor) {
-    return {
-        id: getCompetitorId(competitor),
-        name: getCompetitorTeamName(competitor),
-        shortName: getCompetitorShortName(competitor),
-        score: getCompetitorScore(competitor),
-        record: getCompetitorRecordText(competitor),
-        linescore: getCompetitorLinescoreText(competitor)
-    };
-}
-
-function getSummaryStatus(summaryData) {
-    const headerCompetition = getSummaryHeader(summaryData);
-    const status = getObject(headerCompetition.status);
-    const type = getObject(status.type);
-
-    return {
-        detail: type.detail || type.shortDetail || type.description || 'Status unavailable',
-        category: (type.state || '').toLowerCase()
-    };
-}
-
-function getSummaryTitle(summaryData) {
-    const header = getObject(summaryData.header);
-
-    return header.competition || header.shortName || header.linkText || 'Match Summary';
-}
-
-function getSummaryInfo(summaryData) {
-    const headerCompetition = getSummaryHeader(summaryData);
-    const venue = getObject(headerCompetition.venue);
-    const address = getObject(venue.address);
-    const series = getObject(headerCompetition.series);
-    const notes = normalizeArray(headerCompetition.notes);
-    const firstNote = getObject(notes[0]);
-
-    return {
-        series: series.fullName || series.shortName || '',
-        venue: [venue.fullName, address.city, address.country].filter(Boolean).join(', '),
-        date: headerCompetition.date || '',
-        format: getObject(headerCompetition.format).abbreviation || getObject(headerCompetition.format).name || '',
-        coverage: firstNote.headline || firstNote.summary || ''
-    };
-}
-
-function renderSummaryHero(container, summaryData) {
-    if (!container) {
-        return;
+    if (cached && cached.length > 0) {
+        return cached;
     }
 
-    const competitors = getSummaryCompetitors(summaryData);
-    const teamA = normalizeSummaryTeam(competitors[0] || {});
-    const teamB = normalizeSummaryTeam(competitors[1] || {});
-    const status = getSummaryStatus(summaryData);
-    const info = getSummaryInfo(summaryData);
-    const tossText = getTossText(summaryData);
+    const xml = await fetchXmlDocument(source.url);
+    const articles = parseRssItems(xml, source);
 
-    container.innerHTML = `
-        <section class="card summary-card">
-            <div class="summary-top">
-                <div>
-                    <h1 class="summary-title">${escapeHtml(getSummaryTitle(summaryData))}</h1>
-                    <div class="summary-subtitle">${escapeHtml(status.detail)}</div>
-                </div>
-                <div class="badge ${escapeHtml(status.category.includes('in') ? 'live' : status.category.includes('post') ? 'ok' : 'warn')}">
-                    ${escapeHtml(info.format || 'Match')}
-                </div>
-            </div>
+    setCachedFeed(source.key, articles);
 
-            <div class="info-list">
-                <div class="info-item">
-                    <div class="info-label">Series</div>
-                    <div class="info-value">${escapeHtml(info.series || '—')}</div>
-                </div>
-                <div class="info-item">
-                    <div class="info-label">Date</div>
-                    <div class="info-value">${escapeHtml(formatDisplayDateTime(info.date) || '—')}</div>
-                </div>
-                <div class="info-item">
-                    <div class="info-label">Venue</div>
-                    <div class="info-value">${escapeHtml(info.venue || '—')}</div>
-                </div>
-                <div class="info-item">
-                    <div class="info-label">Note</div>
-                    <div class="info-value">${escapeHtml(tossText || info.coverage || '—')}</div>
-                </div>
-            </div>
-
-            <div class="score-strip">
-                <div class="score-box">
-                    <div class="score-box-name">${escapeHtml(teamA.name)}</div>
-                    <div class="score-box-value">${escapeHtml(teamA.score)}</div>
-                    <div class="score-box-extra">${escapeHtml(teamA.linescore || teamA.record || '')}</div>
-                </div>
-
-                <div class="score-box">
-                    <div class="score-box-name">${escapeHtml(teamB.name)}</div>
-                    <div class="score-box-value">${escapeHtml(teamB.score)}</div>
-                    <div class="score-box-extra">${escapeHtml(teamB.linescore || teamB.record || '')}</div>
-                </div>
-            </div>
-        </section>
-    `;
+    return articles;
 }
 
-function getInningsTableRows(summaryData) {
-    const boxscore = getObject(summaryData.boxscore);
-    const players = normalizeArray(boxscore.players);
+async function fetchCricketNewsFeed() {
+    const results = await Promise.allSettled(
+        NEWS_SOURCES.map(function (source) {
+            return fetchArticlesFromSource(source);
+        })
+    );
 
-    if (players.length > 0) {
-        const rows = [];
+    const merged = [];
+    const errors = [];
 
-        players.forEach(function (teamGroup) {
-            const team = getObject(teamGroup.team);
-            const statistics = normalizeArray(teamGroup.statistics);
-
-            statistics.forEach(function (statBlock) {
-                const block = getObject(statBlock);
-                const labels = normalizeArray(block.labels);
-                const athletes = normalizeArray(block.athletes);
-
-                athletes.forEach(function (athleteRow) {
-                    const athleteData = getObject(athleteRow);
-                    const athlete = getObject(athleteData.athlete);
-                    const stats = normalizeArray(athleteData.stats);
-
-                    rows.push({
-                        team: team.displayName || team.shortDisplayName || 'Team',
-                        player: athlete.displayName || athlete.shortName || 'Player',
-                        role: block.name || block.displayName || '',
-                        stats: labels.map(function (label, index) {
-                            return label + ': ' + (stats[index] !== undefined ? stats[index] : '-');
-                        }).join(' • ')
-                    });
-                });
+    results.forEach(function (result, index) {
+        if (result.status === 'fulfilled') {
+            merged.push.apply(merged, result.value);
+        } else {
+            errors.push({
+                source: NEWS_SOURCES[index].title,
+                error: result.reason
             });
-        });
+        }
+    });
 
-        return rows;
+    const items = sortArticlesByDate(uniqueArticles(merged));
+
+    if (items.length === 0) {
+        const detail = errors.map(function (entry) {
+            return entry.source;
+        }).join(', ');
+
+        throw new Error('No feeds available' + (detail ? ': ' + detail : ''));
     }
 
-    const scoringPlays = normalizeArray(getObject(summaryData.scoringPlays));
-
-    return scoringPlays.map(function (play) {
-        const item = getObject(play);
-        return {
-            team: getObject(item.team).displayName || '',
-            player: item.text || item.shortText || 'Play',
-            role: item.period ? 'Innings ' + item.period.number : '',
-            stats: item.clock ? item.clock.displayValue : ''
-        };
-    });
+    return items;
 }
 
-function renderInningsTable(container, summaryData) {
+function getImageCandidatesFromHtml(html) {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(html || '', 'text/html');
+    const selectors = [
+        'meta[property="og:image"]',
+        'meta[name="twitter:image"]',
+        'meta[property="twitter:image"]',
+        'img'
+    ];
+
+    for (let i = 0; i < selectors.length; i += 1) {
+        const node = doc.querySelector(selectors[i]);
+
+        if (!node) {
+            continue;
+        }
+
+        if (node.tagName.toLowerCase() === 'meta') {
+            const content = node.getAttribute('content');
+
+            if (content) {
+                return content.trim();
+            }
+        }
+
+        if (node.tagName.toLowerCase() === 'img') {
+            const src = node.getAttribute('src') || node.getAttribute('data-src');
+
+            if (src && /^https?:\/\//i.test(src)) {
+                return src.trim();
+            }
+        }
+    }
+
+    return '';
+}
+
+async function enrichMissingImages(articles) {
+    const queue = articles
+        .filter(function (article) {
+            return !article.image && article.link;
+        })
+        .slice(0, REQUEST_CONFIG.imageEnrichLimit);
+
+    const jobs = queue.map(async function (article) {
+        try {
+            const html = await fetchFirstWorkingText(buildProxyUrls(article.link));
+            const image = getImageCandidatesFromHtml(html);
+
+            if (image) {
+                article.image = image;
+            }
+        } catch (error) {
+        }
+    });
+
+    await Promise.allSettled(jobs);
+    return articles;
+}
+
+function renderArticleCard(article) {
+    const imageBlock = article.image
+        ? `
+            <a href="${escapeHtml(article.link)}" target="_blank" rel="noopener noreferrer" class="article-image-link">
+                <img class="article-image" src="${escapeHtml(article.image)}" alt="${escapeHtml(article.title)}" loading="lazy">
+            </a>
+        `
+        : `
+            <div class="article-image article-image-placeholder">
+                <span>No image</span>
+            </div>
+        `;
+
+    return `
+        <article class="card article-card">
+            ${imageBlock}
+            <div class="card-body">
+                <div class="article-title">${escapeHtml(article.title)}</div>
+                <div class="article-meta">
+                    ${escapeHtml(article.sourceName)}
+                    ${article.published ? ' • ' + escapeHtml(formatDisplayDateTime(article.published)) : ''}
+                </div>
+                <div class="article-desc">${escapeHtml(article.description || 'Open the article to read more.')}</div>
+                <a class="article-link" href="${escapeHtml(article.link)}" target="_blank" rel="noopener noreferrer">Open Article</a>
+            </div>
+        </article>
+    `;
+}
+
+function renderArticleCards(container, articles, emptyTitle, emptyText) {
     if (!container) {
         return;
     }
 
-    const rows = getInningsTableRows(summaryData);
-
-    if (!rows || rows.length === 0) {
-        renderState(container, createEmptyState('No detailed stats', 'This match does not expose a scorecard table from the current endpoint.'));
+    if (!articles || articles.length === 0) {
+        renderState(container, createEmptyState(emptyTitle, emptyText));
         return;
     }
 
-    container.innerHTML = `
-        <div class="table-wrap">
-            <table class="table">
-                <thead>
-                    <tr>
-                        <th>Team</th>
-                        <th>Player / Item</th>
-                        <th>Section</th>
-                        <th>Stats</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    ${rows.map(function (row) {
-                        return `
-                            <tr>
-                                <td>${escapeHtml(row.team || '')}</td>
-                                <td><strong>${escapeHtml(row.player || '')}</strong></td>
-                                <td>${escapeHtml(row.role || '')}</td>
-                                <td>${escapeHtml(row.stats || '')}</td>
-                            </tr>
-                        `;
-                    }).join('')}
-                </tbody>
-            </table>
-        </div>
-    `;
+    container.innerHTML = articles.map(renderArticleCard).join('');
 }
 
-function filterSeriesMatches(matches, seriesId) {
-    return matches.filter(function (match) {
-        const safeSeriesId = String(seriesId || '');
-        return safeSeriesId && (
-            String(match.id) === safeSeriesId ||
-            String(match.seriesId) === safeSeriesId
-        );
+function filterArticles(items, query) {
+    const safeQuery = normalizeText(query).toLowerCase();
+
+    if (!safeQuery) {
+        return items.slice();
+    }
+
+    return items.filter(function (article) {
+        const haystack = [
+            article.title,
+            article.description,
+            article.sourceName
+        ].join(' ').toLowerCase();
+
+        return haystack.includes(safeQuery);
     });
+}
+
+function getArticleById(items, articleId) {
+    return items.find(function (item) {
+        return String(item.id) === String(articleId);
+    }) || null;
 }
 
 document.addEventListener('DOMContentLoaded', function () {
