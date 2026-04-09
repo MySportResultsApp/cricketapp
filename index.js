@@ -1,101 +1,97 @@
 document.addEventListener('DOMContentLoaded', function () {
-    initHomePage();
+    initNewsPage();
 });
 
-async function initHomePage() {
-    const liveContainer = document.getElementById('liveMatches');
-    const upcomingContainer = document.getElementById('upcomingMatches');
-    const finishedContainer = document.getElementById('finishedMatches');
+let ALL_ARTICLES = [];
+
+async function initNewsPage() {
     const newsContainer = document.getElementById('newsGrid');
+    const countBadge = document.getElementById('articlesCountBadge');
+    const sourcesBadge = document.getElementById('sourcesBadge');
 
-    const liveBadge = document.getElementById('liveCountBadge');
-    const dateBadge = document.getElementById('todayDateBadge');
+    const searchInput = document.getElementById('searchInput');
+    const clearButton = document.getElementById('clearSearchButton');
+
+    renderState(newsContainer, createLoaderState(
+        'Loading news',
+        'Fetching cricket articles with images...'
+    ));
 
     try {
-        // Дата
-        const now = new Date();
-        dateBadge.textContent = now.toLocaleDateString(undefined, {
-            weekday: 'short',
-            month: 'short',
-            day: 'numeric'
-        });
+        const articles = await fetchCricketNewsFeed();
 
-        // ===== MATCHES =====
-        const matches = await fetchCurrentMatches();
+        // пробуем подтянуть картинки, если где-то нет
+        await enrichMissingImages(articles);
 
-        const grouped = splitMatchesByStatus(matches);
-
-        const liveMatches = grouped.live || [];
-        const upcomingMatches = grouped.upcoming || [];
-        const finishedMatches = grouped.finished || [];
-
-        // BADGE
-        if (liveMatches.length > 0) {
-            liveBadge.textContent = liveMatches.length + ' live match' + (liveMatches.length > 1 ? 'es' : '');
-        } else {
-            liveBadge.textContent = 'No live matches now';
-        }
-
-        // LIVE
-        renderMatchCards(
-            liveContainer,
-            liveMatches,
-            'No live matches',
-            'There are currently no live cricket matches.'
-        );
-
-        // UPCOMING (ограничим, чтобы не было мусора)
-        renderMatchCards(
-            upcomingContainer,
-            upcomingMatches.slice(0, 10),
-            'No upcoming matches',
-            'No scheduled matches found.'
-        );
-
-        // FINISHED (последние)
-        renderMatchCards(
-            finishedContainer,
-            finishedMatches.slice(0, 10),
-            'No recent results',
-            'No recently finished matches found.'
-        );
-
-    } catch (error) {
-        console.error('=INDEX MATCH ERROR=', error);
-
-        renderState(liveContainer, createErrorState(
-            'Failed to load matches',
-            'Could not fetch live cricket data.'
-        ));
-
-        renderState(upcomingContainer, createErrorState(
-            'Failed to load schedule',
-            'Could not fetch upcoming matches.'
-        ));
-
-        renderState(finishedContainer, createErrorState(
-            'Failed to load results',
-            'Could not fetch finished matches.'
-        ));
-    }
-
-    // ===== NEWS =====
-    try {
-        const articles = await fetchCricketNews();
+        ALL_ARTICLES = articles;
 
         renderArticleCards(
             newsContainer,
-            articles.slice(0, 12),
+            articles,
             'No articles',
             'No cricket news available right now.'
         );
 
+        updateBadges(countBadge, sourcesBadge, articles);
+
     } catch (error) {
-        console.error('=INDEX NEWS ERROR=', error);
+        console.error('=NEWS ERROR=', error);
 
         renderState(newsContainer, createErrorState(
             'Failed to load news',
-            'Could not fetch cricket articles.'
+            'Could not fetch cricket articles from feeds.'
         ));
+
+        if (countBadge) {
+            countBadge.textContent = 'Load failed';
+        }
+
+        if (sourcesBadge) {
+            sourcesBadge.textContent = 'Sources unavailable';
+        }
+    }
+
+    // ===== SEARCH =====
+    searchInput.addEventListener('input', function () {
+        const query = searchInput.value;
+
+        const filtered = filterArticles(ALL_ARTICLES, query);
+
+        renderArticleCards(
+            newsContainer,
+            filtered,
+            'No results',
+            'No articles match your search.'
+        );
+
+        if (countBadge) {
+            countBadge.textContent = filtered.length + ' result' + (filtered.length !== 1 ? 's' : '');
+        }
+    });
+
+    clearButton.addEventListener('click', function () {
+        searchInput.value = '';
+
+        renderArticleCards(
+            newsContainer,
+            ALL_ARTICLES,
+            'No articles',
+            'No cricket news available.'
+        );
+
+        if (countBadge) {
+            countBadge.textContent = ALL_ARTICLES.length + ' article' + (ALL_ARTICLES.length !== 1 ? 's' : '');
+        }
+    });
+}
+
+function updateBadges(countBadge, sourcesBadge, articles) {
+    if (countBadge) {
+        countBadge.textContent = articles.length + ' article' + (articles.length !== 1 ? 's' : '');
+    }
+
+    if (sourcesBadge) {
+        const uniqueSources = [...new Set(articles.map(a => a.sourceName))];
+        sourcesBadge.textContent = uniqueSources.join(' • ');
     }
 }
